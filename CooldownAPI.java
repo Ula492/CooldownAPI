@@ -1,72 +1,63 @@
-ackage com.ula.fallen.Utils;
+package com.ula.fallen.Utils;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
-import com.ula.fallen.main;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 
-public class Cooldowns
-{
-    private HashMap<Player, Integer> cooldown = new HashMap();
+public class Cooldown {
 
-    public Integer getPlayer(Player player)
+    private static Map<String, Cooldown> cooldowns = new HashMap();
+    private long start;
+    private final int timeInSeconds;
+    private final UUID id;
+    private final String cooldownName;
+
+    public Cooldown(UUID id, String cooldownName, int timeInSeconds)
     {
-        return (Integer)this.cooldown.get(player);
+        this.id = id;
+        this.cooldownName = cooldownName;
+        this.timeInSeconds = timeInSeconds;
     }
 
-    public boolean containsPlayer(Player player)
+    public static boolean isInCooldown(UUID id, String cooldownName)
     {
-        return this.cooldown.containsKey(player);
+        if (getTimeLeft(id, cooldownName) >= 1) {
+            return true;
+        }
+        stop(id, cooldownName);
+        return false;
     }
 
-    public void addPlayer(Player player, int seconds)
+    private static void stop(UUID id, String cooldownName)
     {
-        this.cooldown.put(player, Integer.valueOf(seconds));
+        cooldowns.remove(id + cooldownName);
     }
 
-    public void removePlayer(Player player)
+    private static Cooldown getCooldown(UUID id, String cooldownName)
     {
-        this.cooldown.remove(player);
+        return (Cooldown)cooldowns.get(id.toString() + cooldownName);
     }
 
-    public void runTimer(final Player player)
+    public static int getTimeLeft(UUID id, String cooldownName)
     {
-        new BukkitRunnable()
+        Cooldown cooldown = getCooldown(id, cooldownName);
+        int f = -1;
+        if (cooldown != null)
         {
-            public void run()
-            {
-                if (((Integer)Cooldowns.this.cooldown.get(player)).intValue() > 0) {
-                    Cooldowns.this.cooldown.put(player, Integer.valueOf(((Integer)Cooldowns.this.cooldown.get(player)).intValue() - 1));
-                }
-                if (((Integer)Cooldowns.this.cooldown.get(player)).intValue() == 0)
-                {
-                    Cooldowns.this.cooldown.remove(player);
-
-                    cancel();
-                }
-            }
-        }.runTaskTimer(JavaPlugin.getPlugin(main.class), 20L, 20L);
+            long now = System.currentTimeMillis();
+            long cooldownTime = cooldown.start;
+            int totalTime = cooldown.timeInSeconds;
+            int r = (int)(now - cooldownTime) / 1000;
+            f = (r - totalTime) * -1;
+        }
+        return f;
     }
 
-    public int getDaysLeft(Player player)
+    public void start()
     {
-        return getPlayer(player).intValue() / 86400;
+        this.start = System.currentTimeMillis();
+        cooldowns.put(this.id.toString() + this.cooldownName, this);
     }
 
-    public int getHoursLeft(Player player)
-    {
-        return getPlayer(player).intValue() % 86400 / 3600;
-    }
-
-    public int getMinutesLeft(Player player)
-    {
-        return getPlayer(player).intValue() % 86400 % 3600 / 60;
-    }
-
-    public int getSecondsLeft(Player player)
-    {
-        return getPlayer(player).intValue() % 86400 % 3600 % 60;
-    }
 }
